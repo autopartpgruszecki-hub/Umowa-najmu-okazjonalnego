@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Generator umowy – najem okazjonalny (format + odstępne + czynsz spółdzielni)</title>
+  <style>
+    :root { --bg:#0b0c10; --card:#141620; --muted:#a7b0c0; --text:#eef2ff; --line:#2a2f3a; }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans";
+      background: radial-gradient(1200px 600px at 20% 0%, #192038 0%, var(--bg) 60%);
+      color:var(--text);
+    }
+    header{
+      padding: 22px 18px; border-bottom:1px solid var(--line);
+      position:sticky; top:0; background: rgba(11,12,16,.8); backdrop-filter: blur(10px);
+      z-index:10;
+    }
+    header .row{max-width:1100px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    h1{font-size:18px;margin:0}
+    .btns{display:flex;gap:10px;flex-wrap:wrap}
+    button{
+      border:1px solid var(--line); background:#1b2132; color:var(--text);
+      padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+    }
+    button:hover{filter:brightness(1.1)}
+    button.primary{background:#2b57ff;border-color:#2b57ff}
+    button.danger{background:#3a1f26;border-color:#5b2a35}
+    main{max-width:1100px;margin:0 auto;padding:18px;display:grid;grid-template-columns: 420px 1fr;gap:16px}
+    @media (max-width: 980px){ main{grid-template-columns:1fr} header{position:static} }
+    .card{
+      border:1px solid var(--line); background: rgba(20,22,32,.86);
+      border-radius:14px; padding:14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.25);
+    }
+    .muted{color:var(--muted);font-size:13px;line-height:1.4}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input, textarea, select{
+      width:100%; border:1px solid var(--line); background:#0f1220; color:var(--text);
+      padding:10px 10px; border-radius:10px; outline:none;
+    }
+    textarea{min-height:80px;resize:vertical}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:8px 10px; border-radius:999px; border:1px solid var(--line);
+      background:#0f1220; font-size:12px; color:var(--muted);
+      margin:6px 6px 0 0;
+    }
+    .warn{border-left:4px solid #2b57ff; padding:10px 12px; background:#0f1220; border-radius:12px}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .printOnly{display:none}
+
+    /* ======= PODGLĄD DOKUMENTU + DRUK ======= */
+    .preview{
+      background: #fff;
+      color: #111;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #dbe0ea;
+    }
+    .paper{
+      max-width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 22mm 18mm;
+      line-height: 1.35;
+      font-family: Georgia, "Times New Roman", Times, serif;
+      font-size: 12pt;
+    }
+    .paper .doc-title{
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: .3px;
+      font-size: 14pt;
+      margin: 0 0 10mm;
+      text-transform: uppercase;
+    }
+    .paper .doc-subtitle{ margin: 0 0 8mm; }
+    .paper p{
+      margin: 0 0 4mm;
+      text-align: justify;
+      hyphens: auto;
+    }
+    .paper p.indent{ text-indent: 8mm; }
+    .paper h3{
+      margin: 8mm 0 3mm;
+      font-size: 12pt;
+      font-weight: 700;
+    }
+    .paper .small{ font-size: 10.5pt; color:#222; }
+    .paper .k{ font-weight: 700; }
+    .paper .sig{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16mm;
+      margin-top: 14mm;
+    }
+    .paper .sig .line{
+      border-top:1px solid #111;
+      margin-top: 18mm;
+    }
+    .paper .sig p{ text-align:center; margin: 2mm 0 0; }
+    .paper hr{
+      border:0;
+      border-top:1px solid #bbb;
+      margin: 10mm 0;
+    }
+    .pagebreak{
+      break-before: page;
+      page-break-before: always;
+    }
+
+    @page{
+      size: A4;
+      margin: 12mm;
+    }
+    @media print{
+      header, .card.form, .btns, .muted.note { display:none !important; }
+      main{ display:block; padding:0; max-width:none; }
+      body{ background:#fff; }
+      .preview{ border:none; border-radius:0; }
+      .paper{
+        max-width:none;
+        min-height:auto;
+        margin:0;
+        padding:0;
+      }
+      .printOnly{display:block}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div>
+            <div class="muted note">Wypełnij formularz po lewej. Umowa aktualizuje się na żywo. Druk: Ctrl/Cmd+P.</div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btnPrint">Drukuj / PDF</button>
+      <button id="btnDownload">Pobierz wypełniony .html</button>
+      <button class="danger" id="btnReset">Wyczyść</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="card form" aria-label="Formularz danych">
+    <div class="warn muted">
+      Ten generator tworzy dokument wzorcowy. Najem okazjonalny zwykle wymaga:
+      <span class="pill">Załącznik nr 2 – akt notarialny (poddanie się egzekucji)</span>
+      <span class="pill">Załącznik nr 3 – wskazanie lokalu zastępczego</span>
+      <span class="pill">Załącznik nr 4 – zgoda właściciela lokalu zastępczego</span>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid2">
+      <div>
+        <label>Data zawarcia</label>
+        <input id="dataZawarcia" type="date" />
+      </div>
+      <div>
+        <label>Miejscowość</label>
+        <input id="miejscowosc" placeholder="np. Warszawa" />
+      </div>
+    </div>
+
+    <h3 style="margin:14px 0 0">Wynajmujący</h3>
+    <label>Imię i nazwisko / firma</label>
+    <input id="wName" placeholder="Jan Kowalski" />
+    <div class="grid3">
+      <div><label>PESEL/NIP</label><input id="wId" placeholder="PESEL/NIP" /></div>
+      <div><label>Dowód</label><input id="wDoc" placeholder="seria i nr" /></div>
+      <div><label>Telefon / e-mail</label><input id="wContact" placeholder="+48..., email" /></div>
+    </div>
+    <label>Adres Wynajmującego</label>
+    <input id="wAddr" placeholder="ul. ..., 00-000 ..." />
+
+    <h3 style="margin:14px 0 0">Najemca</h3>
+    <label>Imię i nazwisko</label>
+    <input id="nName" placeholder="Anna Nowak" />
+    <div class="grid3">
+      <div><label>PESEL</label><input id="nId" placeholder="PESEL" /></div>
+      <div><label>Dowód</label><input id="nDoc" placeholder="seria i nr" /></div>
+      <div><label>Telefon / e-mail</label><input id="nContact" placeholder="+48..., email" /></div>
+    </div>
+    <label>Adres Najemcy</label>
+    <input id="nAddr" placeholder="ul. ..., 00-000 ..." />
+
+    <h3 style="margin:14px 0 0">Lokal</h3>
+    <label>Adres lokalu</label>
+    <input id="lokalAddr" placeholder="ul. ..., nr, kod, miasto" />
+    <div class="grid3">
+      <div><label>Powierzchnia (m²)</label><input id="lokalM2" inputmode="decimal" placeholder="np. 45" /></div>
+      <div><label>Układ</label><input id="lokalOpis" placeholder="np. 2 pokoje + kuchnia" /></div>
+      <div>
+        <label>Liczba kluczy</label>
+        <input id="klucze" inputmode="numeric" placeholder="np. 3" />
+      </div>
+    </div>
+    <label>Wyposażenie (lista / opis)</label>
+    <textarea id="wyposazenie" placeholder="np. lodówka, pralka, sofa, stół..."></textarea>
+
+    <h3 style="margin:14px 0 0">Okres najmu</h3>
+    <div class="grid2">
+      <div><label>Od</label><input id="od" type="date" /></div>
+      <div><label>Do</label><input id="do" type="date" /></div>
+    </div>
+
+    <h3 style="margin:14px 0 0">Płatności</h3>
+    <div class="grid2">
+      <div><label>Odstępne (PLN / miesiąc) – dla Wynajmującego</label>
+        <input id="odstepne" inputmode="decimal" placeholder="np. 2500" />
+      </div>
+      <div><label>Czynsz do spółdzielni / wspólnoty (PLN / miesiąc)</label>
+        <input id="czynszSpoldzielnia" inputmode="decimal" placeholder="np. 700" />
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div><label>Dzień płatności (odstępne)</label>
+        <input id="dzienPlatnosci" inputmode="numeric" placeholder="np. 10" />
+      </div>
+      <div><label>Rachunek / forma płatności (odstępne)</label>
+        <input id="konto" placeholder="np. PL..." />
+      </div>
+    </div>
+
+    <label>Jak płacony jest czynsz spółdzielczy?</label>
+    <input id="spoldzielniaJak" placeholder="np. Najemca przelewa bezpośrednio do spółdzielni / albo do Wynajmującego razem z odstępnym" />
+
+    <div class="grid2">
+      <div><label>Kaucja (PLN)</label><input id="kaucja" inputmode="decimal" placeholder="np. 3200" /></div>
+      <div><label>Termin zwrotu kaucji (dni)</label><input id="kaucjaZwrot" inputmode="numeric" placeholder="np. 30" /></div>
+    </div>
+
+    <label>Media / inne opłaty (kto, co, jak rozliczane)</label>
+    <textarea id="oplaty" placeholder="np. prąd wg faktur, woda wg liczników, internet po stronie Najemcy..."></textarea>
+
+    <h3 style="margin:14px 0 0">Lokatorzy i zasady</h3>
+    <label>Osoby uprawnione do zamieszkania</label>
+    <input id="lokatorzy" placeholder="np. Najemca + 1 osoba (imię, nazwisko)" />
+    <div class="grid2">
+      <div>
+        <label>Zwierzęta</label>
+        <select id="zwierzeta">
+          <option value="dozwolone">Dozwolone</option>
+          <option value="zakaz">Zakaz</option>
+          <option value="warunki">Dozwolone na warunkach</option>
+        </select>
+      </div>
+      <div>
+        <label>Palenie</label>
+        <select id="palenie">
+          <option value="zakaz">Zakaz</option>
+          <option value="dozwolone">Dozwolone</option>
+          <option value="warunki">Dozwolone na warunkach</option>
+        </select>
+      </div>
+    </div>
+    <label>Warunki dot. zwierząt/palenia (jeśli wybrano „na warunkach”)</label>
+    <input id="warunkiZasady" placeholder="np. tylko mały pies; palenie tylko na balkonie" />
+
+    <h3 style="margin:14px 0 0">Załączniki – lokal zastępczy</h3>
+    <label>Adres lokalu zastępczego (Załącznik nr 3)</label>
+    <input id="zastAdres" placeholder="ul. ..., nr, kod, miasto" />
+    <label>Właściciel / uprawniony do lokalu zastępczego (Załącznik nr 4)</label>
+    <input id="zastWlasciciel" placeholder="Imię i nazwisko" />
+    <div class="grid2">
+      <div><label>PESEL/NIP właściciela</label><input id="zastWlId" placeholder="PESEL/NIP" /></div>
+      <div><label>Tytuł prawny (np. właściciel/najemca)</label><input id="zastTytul" placeholder="np. właściciel" /></div>
+    </div>
+  </section>
+
+  <section class="preview" aria-label="Podgląd umowy">
+    <div class="paper" id="doc">
+      <div class="printOnly small">Wydruk z generatora (HTML) – sprawdź dane i załączniki.</div>
+
+      <div class="doc-title">UMOWA NAJMU OKAZJONALNEGO LOKALU MIESZKALNEGO</div>
+
+      <p class="doc-subtitle small">
+        zawarta w dniu <span class="k" data-bind="dataZawarciaText"></span>
+        w <span class="k" data-bind="miejscowosc"></span>, pomiędzy:
+      </p>
+
+      <p class="indent"><span class="k">1) Wynajmującym:</span> <span data-bind="wName"></span>, PESEL/NIP: <span data-bind="wId"></span>, dowód: <span data-bind="wDoc"></span>, adres: <span data-bind="wAddr"></span>, kontakt: <span data-bind="wContact"></span>.</p>
+      <p class="indent"><span class="k">2) Najemcą:</span> <span data-bind="nName"></span>, PESEL: <span data-bind="nId"></span>, dowód: <span data-bind="nDoc"></span>, adres: <span data-bind="nAddr"></span>, kontakt: <span data-bind="nContact"></span>.</p>
+
+      <h3>§ 1. Przedmiot najmu</h3>
+      <p class="indent">1. Wynajmujący oddaje Najemcy do używania lokal mieszkalny położony w: <span class="k" data-bind="lokalAddr"></span>, o powierzchni <span class="k" data-bind="lokalM2"></span> m², składający się z: <span class="k" data-bind="lokalOpis"></span> (dalej: „Lokal”).</p>
+      <p class="indent">2. Lokal jest wyposażony w: <span data-bind="wyposazenie"></span>. Protokół zdawczo-odbiorczy i spis wyposażenia stanowią Załącznik nr 1.</p>
+      <p class="indent">3. Lokal będzie używany wyłącznie w celach mieszkaniowych przez: <span class="k" data-bind="lokatorzy"></span>.</p>
+
+      <h3>§ 2. Oświadczenia Stron</h3>
+      <p class="indent">1. Wynajmujący oświadcza, że przysługuje mu tytuł prawny do Lokalu oraz że Lokal jest wolny od przeszkód uniemożliwiających jego wynajęcie.</p>
+      <p class="indent">2. Najemca oświadcza, że zapoznał się ze stanem Lokalu i nie wnosi zastrzeżeń (z zastrzeżeniem ustaleń w protokole).</p>
+
+      <h3>§ 3. Czas trwania</h3>
+      <p class="indent">1. Umowa zostaje zawarta na czas oznaczony: od <span class="k" data-bind="odText"></span> do <span class="k" data-bind="doText"></span>.</p>
+      <p class="indent">2. Dalsze korzystanie z Lokalu wymaga pisemnego aneksu, chyba że Strony postanowią inaczej na piśmie.</p>
+
+      <h3>§ 4. Odstępne i opłaty administracyjne</h3>
+      <p class="indent">1. Najemca będzie płacił Wynajmującemu <span class="k">odstępne</span> w wysokości <span class="k" data-bind="odstepneFmt"></span> PLN miesięcznie, płatne z góry do dnia <span class="k" data-bind="dzienPlatnosci"></span> każdego miesiąca na rachunek / w formie: <span class="k" data-bind="konto"></span>.</p>
+      <p class="indent">2. Niezależnie od odstępnego Najemca ponosi <span class="k">czynsz do spółdzielni / wspólnoty</span> w wysokości <span class="k" data-bind="czynszSpoldzielniaFmt"></span> PLN miesięcznie. Sposób płatności: <span class="k" data-bind="spoldzielniaJak"></span>.</p>
+      <p class="indent">3. Łączna miesięczna kwota stała (odstępne + czynsz spółdzielczy) wynosi: <span class="k" data-bind="miesiecznieRazem"></span> PLN.</p>
+      <p class="indent">4. Media i inne opłaty: <span data-bind="oplaty"></span>.</p>
+
+      <h3>§ 5. Kaucja</h3>
+      <p class="indent">1. Najemca wpłaci kaucję w wysokości <span class="k" data-bind="kaucja"></span> PLN.</p>
+      <p class="indent">2. Zwrot kaucji nastąpi w terminie <span class="k" data-bind="kaucjaZwrot"></span> dni od dnia opróżnienia Lokalu i podpisania protokołu końcowego, po potrąceniu należności Wynajmującego (jeśli wystąpią).</p>
+
+      <h3>§ 6. Wydanie Lokalu</h3>
+      <p class="indent">1. Wydanie Lokalu nastąpi na podstawie protokołu zdawczo-odbiorczego (Załącznik nr 1), wraz z przekazaniem <span class="k" data-bind="klucze"></span> kluczy.</p>
+
+      <h3>§ 7. Zasady użytkowania</h3>
+      <p class="indent">1. Najemca zobowiązuje się używać Lokal zgodnie z jego przeznaczeniem, utrzymywać porządek oraz przestrzegać regulaminu wspólnoty/spółdzielni.</p>
+      <p class="indent">2. Bez pisemnej zgody Wynajmującego Najemca nie może podnajmować Lokalu ani oddawać go do bezpłatnego używania, dokonywać przeróbek oraz prowadzić uciążliwej działalności.</p>
+      <p class="indent">3. Zwierzęta: <span class="k" data-bind="zwierzetaText"></span>. Palenie: <span class="k" data-bind="palenieText"></span><span data-bind="warunkiZasadySuffix"></span>.</p>
+
+      <h3>§ 8. Kontrola Lokalu</h3>
+      <p class="indent">1. Wynajmujący ma prawo do kontroli stanu Lokalu po wcześniejszym uzgodnieniu terminu z Najemcą.</p>
+      <p class="indent">2. W sytuacjach nagłych (awaria zagrażająca mieniu/życiu) Wynajmujący może wejść do Lokalu niezwłocznie, w miarę możliwości w obecności Najemcy lub osoby trzeciej.</p>
+
+      <h3>§ 9. Rozwiązanie umowy</h3>
+      <p class="indent">1. Umowa może zostać rozwiązana za porozumieniem Stron na piśmie.</p>
+      <p class="indent">2. Wynajmujący może wypowiedzieć umowę w przypadkach przewidzianych prawem, w szczególności w razie zaległości płatniczych lub rażącego naruszania zasad współżycia / umowy.</p>
+
+      <h3>§ 10. Najem okazjonalny – załączniki</h3>
+      <p class="indent">1. Strony zgodnie oświadczają, że niniejsza umowa jest umową najmu okazjonalnego.</p>
+      <p class="indent">2. Najemca przekazuje Wynajmującemu: (i) oświadczenie w formie aktu notarialnego o poddaniu się egzekucji (Załącznik nr 2), (ii) wskazanie lokalu zastępczego (Załącznik nr 3), (iii) zgodę właściciela lokalu zastępczego (Załącznik nr 4).</p>
+
+      <h3>§ 11. Zwrot Lokalu</h3>
+      <p class="indent">Po zakończeniu najmu Najemca zwróci Lokal opróżniony z rzeczy, w stanie niepogorszonym ponad normalne zużycie, a Strony podpiszą protokół końcowy.</p>
+
+      <h3>§ 12. Postanowienia końcowe</h3>
+      <p class="indent">W sprawach nieuregulowanych zastosowanie mają przepisy Kodeksu cywilnego oraz ustawy o ochronie praw lokatorów (w zakresie właściwym dla najmu okazjonalnego). Zmiany wymagają formy pisemnej.</p>
+
+      <div class="sig">
+        <div>
+          <div class="line"></div>
+          <p class="small">Wynajmujący</p>
+        </div>
+        <div>
+          <div class="line"></div>
+          <p class="small">Najemca</p>
+        </div>
+      </div>
+
+      <div class="pagebreak"></div>
+
+      <h3>Załącznik nr 1 – Protokół zdawczo-odbiorczy (szablon)</h3>
+      <p class="small">
+        Data: ________<br/>
+        Adres: <span data-bind="lokalAddr"></span><br/>
+        Stan liczników: prąd ________; gaz ________; woda zimna ________; woda ciepła ________<br/>
+        Klucze: <span data-bind="klucze"></span><br/>
+        Wyposażenie: <span data-bind="wyposazenie"></span><br/>
+        Uwagi/usterki: ________________________________________________
+      </p>
+
+      <div class="pagebreak"></div>
+
+      <h3>Załącznik nr 3 – Wskazanie lokalu zastępczego</h3>
+      <p class="indent">Ja, <span class="k" data-bind="nName"></span>, wskazuję lokal położony w: <span class="k" data-bind="zastAdres"></span>, w którym będę mógł/mogła zamieszkać w razie wykonania egzekucji obowiązku opróżnienia Lokalu.</p>
+
+      <div class="pagebreak"></div>
+
+      <h3>Załącznik nr 4 – Zgoda właściciela lokalu zastępczego</h3>
+      <p class="indent">Ja, <span class="k" data-bind="zastWlasciciel"></span>, PESEL/NIP: <span class="k" data-bind="zastWlId"></span>, oświadczam, że przysługuje mi tytuł prawny do lokalu położonego w <span class="k" data-bind="zastAdres"></span> jako: <span class="k" data-bind="zastTytul"></span>, oraz wyrażam zgodę na zamieszkanie w nim Najemcy i osób z nim zamieszkujących.</p>
+
+      <div class="pagebreak"></div>
+
+      <h3>Załącznik nr 2 – Oświadczenie Najemcy (do notariusza)</h3>
+      <p class="small">
+        Załącznik sporządza notariusz jako akt notarialny (poddanie się egzekucji co do obowiązku opróżnienia i wydania Lokalu).
+      </p>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  const fields = [
+    "dataZawarcia","miejscowosc",
+    "wName","wId","wDoc","wAddr","wContact",
+    "nName","nId","nDoc","nAddr","nContact",
+    "lokalAddr","lokalM2","lokalOpis","klucze","wyposazenie",
+    "od","do",
+    "odstepne","czynszSpoldzielnia","spoldzielniaJak",
+    "dzienPlatnosci","konto",
+    "kaucja","kaucjaZwrot","oplaty",
+    "lokatorzy","zwierzeta","palenie","warunkiZasady",
+    "zastAdres","zastWlasciciel","zastWlId","zastTytul"
+  ];
+
+  const defaults = {
+    miejscowosc: "________",
+    wName: "________", wId:"________", wDoc:"________", wAddr:"________", wContact:"________",
+    nName: "________", nId:"________", nDoc:"________", nAddr:"________", nContact:"________",
+    lokalAddr:"________", lokalM2:"__", lokalOpis:"________",
+    klucze:"__", wyposazenie:"________",
+    odstepne:"____",
+    czynszSpoldzielnia:"____",
+    spoldzielniaJak:"Najemca opłaca bezpośrednio do spółdzielni / wspólnoty (albo: do Wynajmującego razem z odstępnym).",
+    dzienPlatnosci:"__", konto:"________",
+    kaucja:"____", kaucjaZwrot:"30", oplaty:"________",
+    lokatorzy:"Najemca", zastAdres:"________", zastWlasciciel:"________", zastWlId:"________", zastTytul:"________"
+  };
+
+  function fmtDate(iso){
+    if(!iso) return "________";
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("pl-PL", { year:"numeric", month:"long", day:"numeric" });
+  }
+
+  function sanitizeText(s){
+    return (s ?? "").toString();
+  }
+
+  function getVal(id){
+    const el = $(id);
+    if(!el) return "";
+    return sanitizeText(el.value).trim();
+  }
+
+  function mapEnum(v){
+    if(v === "dozwolone") return "dozwolone";
+    if(v === "zakaz") return "zakaz";
+    return "dozwolone na warunkach";
+  }
+
+  function toMoneyNumber(x){
+    if(!x) return 0;
+    const s = String(x).replace(/\s+/g,'').replace(',', '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatPLN(n){
+    return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function bind(){
+    const data = {};
+    for(const f of fields){
+      data[f] = getVal(f);
+    }
+
+    data.dataZawarciaText = fmtDate(data.dataZawarcia);
+    data.odText = fmtDate(data.od);
+    data.doText = fmtDate(data.do);
+    data.zwierzetaText = mapEnum(data.zwierzeta || "dozwolone");
+    data.palenieText = mapEnum(data.palenie || "zakaz");
+
+    const w = (data.warunkiZasady || "").trim();
+    data.warunkiZasadySuffix = "";
+    if((data.zwierzeta === "warunki" || data.palenie === "warunki") && w){
+      data.warunkiZasadySuffix = " (warunki: " + w + ")";
+    } else if (data.zwierzeta === "warunki" || data.palenie === "warunki") {
+      data.warunkiZasadySuffix = " (warunki: ____________)";
+    }
+
+    const od = toMoneyNumber(data.odstepne);
+    const cs = toMoneyNumber(data.czynszSpoldzielnia);
+    data.miesiecznieRazem = formatPLN(od + cs);
+    data.odstepneFmt = data.odstepne?.trim() ? formatPLN(od) : (defaults.odstepne ?? "____");
+    data.czynszSpoldzielniaFmt = data.czynszSpoldzielnia?.trim() ? formatPLN(cs) : (defaults.czynszSpoldzielnia ?? "____");
+
+    document.querySelectorAll("[data-bind]").forEach(node=>{
+      const key = node.getAttribute("data-bind");
+      const val = (data[key] && data[key].length) ? data[key] : (defaults[key] ?? "________");
+      node.textContent = val;
+    });
+  }
+
+  function resetAll(){
+    fields.forEach(f=>{
+      const el = $(f);
+      if(!el) return;
+      el.value = "";
+    });
+    $("kaucjaZwrot").value = "30";
+    $("lokatorzy").value = "Najemca";
+    $("zwierzeta").value = "dozwolone";
+    $("palenie").value = "zakaz";
+    $("spoldzielniaJak").value = defaults.spoldzielniaJak;
+    bind();
+  }
+
+  function downloadFilledHtml(){
+    const clone = document.documentElement.cloneNode(true);
+
+    fields.forEach(id=>{
+      const live = $(id);
+      const c = clone.querySelector("#"+CSS.escape(id));
+      if(!live || !c) return;
+
+      if(c.tagName === "TEXTAREA"){
+        c.textContent = live.value;
+      } else if(c.tagName === "SELECT"){
+        const val = live.value;
+        [...c.options].forEach(o => o.selected = (o.value === val));
+      } else {
+        c.setAttribute("value", live.value);
+      }
+    });
+
+    const script = clone.querySelector("script:last-of-type");
+    if(script){
+      script.textContent = script.textContent + "\nwindow.addEventListener('DOMContentLoaded', bind);\n";
+    }
+
+    const html = "<!doctype html>\n" + clone.outerHTML;
+    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    const d = new Date();
+    const stamp = d.toISOString().slice(0,10);
+    a.download = `umowa-najem-okazjonalny-${stamp}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  fields.forEach(f=>{
+    const el = $(f);
+    if(el) el.addEventListener("input", bind);
+    if(el && (el.tagName === "SELECT")) el.addEventListener("change", bind);
+  });
+
+  $("btnPrint").addEventListener("click", ()=> window.print());
+  $("btnDownload").addEventListener("click", downloadFilledHtml);
+  $("btnReset").addEventListener("click", resetAll);
+
+  resetAll();
+</script>
+</body>
+</html>
