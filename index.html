@@ -18,7 +18,6 @@
       z-index:10;
     }
     header .row{max-width:1100px;margin:0 auto;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-    h1{font-size:18px;margin:0}
     .btns{display:flex;gap:10px;flex-wrap:wrap}
     button{
       border:1px solid var(--line); background:#1b2132; color:var(--text);
@@ -136,11 +135,25 @@
 <header>
   <div class="row">
     <div>
-            <div class="muted note">Wypełnij formularz po lewej. Umowa aktualizuje się na żywo. Druk: Ctrl/Cmd+P.</div>
+      <div class="muted note">Wypełnij formularz po lewej. Umowa aktualizuje się na żywo. Druk: Ctrl/Cmd+P.</div>
+      <div class="muted" style="margin-top:6px">
+        <span style="display:inline-block;margin-right:10px">Zapis / wczytanie umów:</span>
+        <select id="saveSelect" style="width:auto;min-width:260px">
+          <option value="">— wybierz zapis —</option>
+        </select>
+      </div>
     </div>
     <div class="btns">
       <button class="primary" id="btnPrint">Drukuj / PDF</button>
       <button id="btnDownload">Pobierz wypełniony .html</button>
+
+      <button id="btnSave">Zapisz</button>
+      <button id="btnSaveOverwrite">Zapisz (nadpisz wybrany)</button>
+      <button id="btnLoad">Wczytaj</button>
+      <button id="btnExport">Eksport JSON</button>
+      <button id="btnImport">Import JSON</button>
+      <button class="danger" id="btnDelete">Usuń zapis</button>
+
       <button class="danger" id="btnReset">Wyczyść</button>
     </div>
   </div>
@@ -314,6 +327,9 @@
 
       <h3>§ 6. Wydanie Lokalu</h3>
       <p class="indent">1. Wydanie Lokalu nastąpi na podstawie protokołu zdawczo-odbiorczego (Załącznik nr 1), wraz z przekazaniem <span class="k" data-bind="klucze"></span> kluczy.</p>
+      <p class="indent">2. Strony ustalają, że wydanie Lokalu (w tym przekazanie kluczy oraz umożliwienie korzystania z Lokalu) nastąpi wyłącznie po łącznym spełnieniu następujących warunków: (a) wpłacie przez Najemcę kaucji, o której mowa w § 5, oraz uiszczeniu pierwszej płatności, o której mowa w § 4; oraz (b) przekazaniu Wynajmującemu kompletu dokumentów, o których mowa w § 10 ust. 2, tj.: (i) oświadczenia Najemcy w formie aktu notarialnego o poddaniu się egzekucji (Załącznik nr 2), (ii) wskazania lokalu zastępczego (Załącznik nr 3), (iii) zgody właściciela lokalu zastępczego (Załącznik nr 4).</p>
+      <p class="indent">3. Do czasu spełnienia warunków wskazanych w ust. 2 Najemcy nie przysługuje prawo władania Lokal em ani prawo do pobrania kluczy, a ewentualne udostępnienie Lokalu ma charakter wyłącznie techniczny (np. w celu oględzin, wykonania pomiarów) i nie stanowi wydania Lokalu.</p>
+      <p class="indent">4. W przypadku nieprzekazania dokumentów, o których mowa w § 10 ust. 2, w terminie 14 dni od dnia zawarcia umowy, Wynajmujący może odstąpić od umowy ze skutkiem natychmiastowym.</p>
 
       <h3>§ 7. Zasady użytkowania</h3>
       <p class="indent">1. Najemca zobowiązuje się używać Lokal zgodnie z jego przeznaczeniem, utrzymywać porządek oraz przestrzegać regulaminu wspólnoty/spółdzielni.</p>
@@ -444,6 +460,26 @@
     return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function getFormData(){
+    const data = {};
+    fields.forEach(id => data[id] = getVal(id));
+    return data;
+  }
+
+  function setFormData(data){
+    fields.forEach(id=>{
+      const el = $(id);
+      if(!el) return;
+      const v = (data && (id in data)) ? (data[id] ?? "") : "";
+      if(el.tagName === "SELECT"){
+        el.value = v || el.value;
+      } else {
+        el.value = v;
+      }
+    });
+    bind();
+  }
+
   function bind(){
     const data = {};
     for(const f of fields){
@@ -475,6 +511,11 @@
       const val = (data[key] && data[key].length) ? data[key] : (defaults[key] ?? "________");
       node.textContent = val;
     });
+
+    // auto-zapis roboczy
+    try {
+      localStorage.setItem("rentgen:lastDraft", JSON.stringify(getFormData()));
+    } catch(e) {}
   }
 
   function resetAll(){
@@ -529,6 +570,149 @@
     URL.revokeObjectURL(url);
   }
 
+  // ====== ZAPIS/WCZYTYWANIE ======
+  const STORAGE_KEY = "rentgen:saves:v1";
+
+  function safeJsonParse(str, fallback){
+    try { return JSON.parse(str); } catch { return fallback; }
+  }
+
+  function getAllSaves(){
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const arr = safeJsonParse(raw, []);
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  function setAllSaves(arr){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    refreshSaveSelect();
+  }
+
+  function makeLabel(data){
+    const who = (data?.nName || "Najemca").trim();
+    const where = (data?.lokalAddr || "Lokal").trim();
+    const when = (data?.od || data?.dataZawarcia || "").trim();
+    const stamp = new Date().toISOString().slice(0,16).replace('T',' ');
+    return `${who} • ${where} • ${when || stamp}`;
+  }
+
+  function refreshSaveSelect(){
+    const sel = $("saveSelect");
+    if(!sel) return;
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— wybierz zapis —</option>`;
+    const saves = getAllSaves();
+    for(const s of saves){
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.label;
+      sel.appendChild(opt);
+    }
+    sel.value = current && saves.some(s=>s.id===current) ? current : "";
+  }
+
+  function newId(){
+    return (crypto?.randomUUID)
+      ? crypto.randomUUID()
+      : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+  }
+
+  function saveCurrent(){
+    const saves = getAllSaves();
+    const data = getFormData();
+    const id = newId();
+    const label = makeLabel(data);
+    saves.unshift({ id, label, createdAt: new Date().toISOString(), data });
+    setAllSaves(saves.slice(0, 200));
+    $("saveSelect").value = id;
+  }
+
+  function saveOverwriteSelected(){
+    const id = $("saveSelect").value;
+    if(!id){
+      saveCurrent();
+      return;
+    }
+
+    const saves = getAllSaves();
+    const idx = saves.findIndex(s => s.id === id);
+    if(idx === -1){
+      saveCurrent();
+      return;
+    }
+
+    const data = getFormData();
+    saves[idx] = {
+      ...saves[idx],
+      label: makeLabel(data),
+      updatedAt: new Date().toISOString(),
+      data
+    };
+
+    setAllSaves(saves);
+    $("saveSelect").value = id;
+  }
+
+  function loadSelected(){
+    const id = $("saveSelect").value;
+    if(!id) return;
+    const saves = getAllSaves();
+    const found = saves.find(s => s.id === id);
+    if(found) setFormData(found.data);
+  }
+
+  function deleteSelected(){
+    const id = $("saveSelect").value;
+    if(!id) return;
+    const saves = getAllSaves().filter(s => s.id !== id);
+    setAllSaves(saves);
+    $("saveSelect").value = "";
+  }
+
+  function exportSelectedJson(){
+    const id = $("saveSelect").value;
+    if(!id) return;
+    const saves = getAllSaves();
+    const found = saves.find(s => s.id === id);
+    if(!found) return;
+
+    const blob = new Blob([JSON.stringify(found, null, 2)], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `umowa-zapis-${id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJsonFile(){
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const obj = safeJsonParse(String(reader.result || ""), null);
+        if(!obj || !obj.data || typeof obj.data !== "object") return;
+
+        const saves = getAllSaves();
+        const id = obj.id || newId();
+        const label = obj.label || makeLabel(obj.data);
+        saves.unshift({ id, label, createdAt: obj.createdAt || new Date().toISOString(), updatedAt: obj.updatedAt, data: obj.data });
+        setAllSaves(saves.slice(0, 200));
+        $("saveSelect").value = id;
+        setFormData(obj.data);
+      };
+      reader.readAsText(file, "utf-8");
+    };
+    input.click();
+  }
+
+  // ====== LISTENERY ======
   fields.forEach(f=>{
     const el = $(f);
     if(el) el.addEventListener("input", bind);
@@ -539,7 +723,26 @@
   $("btnDownload").addEventListener("click", downloadFilledHtml);
   $("btnReset").addEventListener("click", resetAll);
 
-  resetAll();
+  $("btnSave").addEventListener("click", saveCurrent);
+  $("btnSaveOverwrite").addEventListener("click", saveOverwriteSelected);
+  $("btnLoad").addEventListener("click", loadSelected);
+  $("btnDelete").addEventListener("click", deleteSelected);
+  $("btnExport").addEventListener("click", exportSelectedJson);
+  $("btnImport").addEventListener("click", importJsonFile);
+
+  function boot(){
+    refreshSaveSelect();
+
+    const draft = safeJsonParse(localStorage.getItem("rentgen:lastDraft"), null);
+    if(draft && typeof draft === "object"){
+      setFormData(draft);
+    } else {
+      resetAll();
+    }
+    bind();
+  }
+
+  boot();
 </script>
 </body>
 </html>
